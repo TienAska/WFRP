@@ -1,0 +1,29 @@
+#include "Assets/Shaders/ShaderLibrary/ClusterInput.hlsl"
+
+#pragma kernel ClusterAABBKernel
+
+RWStructuredBuffer<ClusterAABB> clusters;
+
+struct ComputeInput
+{
+    uint3 groupID : SV_GROUPID;                   // xy represent grid.xy
+    uint3 dispatchThreadID : SV_DispatchThreadID; // z represent grid.z
+};
+
+float3 TransformScreenToView(float4 positionSS)
+{
+    float2 texCoord = positionSS.xy * _ScreenParams;
+
+    float4 positionOS = float4(texCoord.xy * 2.0 - 1.0, positionSS.zw);
+
+    float4 positionVS;
+    return positionVS.xyz;
+}
+
+
+[numthreads(16,8,1)]
+void ClusterAABBKernel (ComputeInput input)
+{
+    float4 maxSS = float4((_clusterSize.xy + 1) * input.groupID.xy, -1.0, 1.0);
+    float4 minSS = float4(_clusterSize.x * input.groupID.xy, -1.0, 1.0);
+}
