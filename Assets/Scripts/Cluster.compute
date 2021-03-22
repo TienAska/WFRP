@@ -1,29 +1,61 @@
-#include "Assets/Shaders/ShaderLibrary/ClusterInput.hlsl"
-
 #pragma kernel ClusterAABBKernel
 
-RWStructuredBuffer<ClusterAABB> clusters;
+#include "Assets/Shaders/ShaderLibrary/ClusterInput.hlsl"
+
+RWStructuredBuffer<AABB> _Clusters;
 
 struct ComputeInput
 {
-    uint3 groupID : SV_GROUPID;                   // xy represent grid.xy
+    uint  groupIndex : SV_GROUPINDEX;
+    uint3 groupThreadID : SV_GROUPTHREADID;             // xy represent grid.xy
     uint3 dispatchThreadID : SV_DispatchThreadID; // z represent grid.z
 };
 
 float3 TransformScreenToView(float4 positionSS)
 {
-    float2 texCoord = positionSS.xy * _ScreenParams;
+    float2 texCoord = positionSS.xy / _ScreenParams.xy;
 
     float4 positionOS = float4(texCoord.xy * 2.0 - 1.0, positionSS.zw);
 
-    float4 positionVS;
-    return positionVS.xyz;
+    float4 positionVS = mul(UNITY_MATRIX_I_P, positionOS);
+    return positionVS.xyz / positionVS.w;
 }
 
+float3 LineIntersetctionToZPlane(float3 a, float3 b, float zDistance)
+{
+    float3 normal = float3(0, 0, 1);
+    float3 ab = b - a;
+    float t = (zDistance - dot(normal, a)) / dot(normal, ab);
+    float3 result = a + t * ab;
+    return result;
+}
 
 [numthreads(16,8,1)]
 void ClusterAABBKernel (ComputeInput input)
 {
-    float4 maxSS = float4((_clusterSize.xy + 1) * input.groupID.xy, -1.0, 1.0);
-    float4 minSS = float4(_clusterSize.x * input.groupID.xy, -1.0, 1.0);
+    float4 maxSS = float4(_ClusterSize.xy * (input.groupThreadID.xy + 1), -1.0, 1.0);
+    float4 minSS = float4(_ClusterSize.xy * input.groupThreadID.xy, -1.0, 1.0);
+
+    float3 maxVS = TransformScreenToView(maxSS);
+    float3 minVS = TransformScreenToView(minSS);
+
+    float near = _ProjectionParams.x * _ProjectionParams.y *
+        pow((_ProjectionParams.z / _ProjectionParams.y), input.dispatchThreadID.z / float(_ClusterSize.z));
+
+    float far = _ProjectionParams.x * _ProjectionParams.y *
+        pow((_ProjectionParams.z / _ProjectionParams.y), (input.dispatchThreadID.z + 1.0) / float(_ClusterSize.z));
+
+    float3 eye = float3(0, 0, 0);
+    float3 maxNear = LineIntersetctionToZPlane(eye, maxVS, near);
+    float3 maxFar  = LineIntersetctionToZPlane(eye, maxVS, far);
+    float3 minNear = LineIntersetctionToZPlane(eye, minVS, near);
+    float3 minFar  = LineIntersetctionToZPlane(eye, minVS, far);
+
+    float3 maxAABB = max(max(minNear, minFar), max(maxNear, maxFar));
+    float3 minAABB = min(min(minNear, minFar), min(maxNear, maxFar));
+
+    AABB aabb = {float4(maxAABB, 1.0f), float4(minAABB, 1.0f)};
+    //aabb.max.xyz = maxSS;
+    //aabb.min.xyz = maxVS;
+    _Clusters[input.dispatchThreadID.z * 16 * 8 + input.groupIndex] = aabb;
 }

@@ -4,9 +4,9 @@
 #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
 // x, y represent size in pixel; z represent dispatched z size.
-uint4 _clusterSize;
+uint4 _ClusterSize;
 
-struct ClusterAABB
+struct AABB
 {
 	float4 max;
 	float4 min;

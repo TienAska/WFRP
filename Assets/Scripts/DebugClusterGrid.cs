@@ -9,17 +9,17 @@ public class DebugClusterGrid : ScriptableRendererFeature
 
     [System.Serializable]
     public class DebugSettings
-    { 
+    {
+        public ComputeShader ClusterCompute;
     }
 
     [SerializeField]
     private DebugSettings settings = new DebugSettings();
 
     private const string shaderName = "Hidden/Debug/ClusterGrid";
+
     private Material clusterMaterial;
     private ClusteredRenderPass clusteredPass;
-
-    private ComputeBuffer clusterList, itemList;
 
     /// <inheritdoc/>
     public override void Create()
@@ -39,9 +39,6 @@ public class DebugClusterGrid : ScriptableRendererFeature
             clusterMaterial = CoreUtils.CreateEngineMaterial(shaderName);
             clusteredPass.clusterMaterial = clusterMaterial;
         }
-
-        //clusterList = new ComputeBuffer(512, 2 * 4);
-        //itemList = new ComputeBuffer(512, 4);
     }
 
     // Here you can inject one or multiple render passes in the renderer.
@@ -63,9 +60,7 @@ public class DebugClusterGrid : ScriptableRendererFeature
     protected override void Dispose(bool disposing)
     {
         CoreUtils.Destroy(clusterMaterial);
-
-        CoreUtils.SafeRelease(clusterList);
-        CoreUtils.SafeRelease(itemList);
+        clusteredPass.CleanUp();
     }
 
     private class ClusteredRenderPass : ScriptableRenderPass
@@ -73,14 +68,48 @@ public class DebugClusterGrid : ScriptableRendererFeature
         internal string profilerTag;
         internal Material clusterMaterial;
 
+        private ComputeShader computeShader;
+
+        private ComputeBuffer clusterList, itemList;
+
+        private static readonly int clusterSizeID = Shader.PropertyToID("_ClusterSize");
+        private static readonly int clustersID = Shader.PropertyToID("_Clusters");
 
         internal ClusteredRenderPass()
         {
+            if (clusterList == null)
+            { 
+                clusterList = new ComputeBuffer(2048, 2 * 4 * 4);
+            }
+            //if (itemList == null)
+            //{
+            //    itemList = new ComputeBuffer(2048, 4);
+            //}
         }
 
         internal bool Setup(DebugSettings settings)
         {
+            computeShader = settings.ClusterCompute;
             return clusterMaterial != null;
+        }
+
+        private void UpdateAABB()
+        {
+            if (computeShader != null)
+            {
+                int kernal = computeShader.FindKernel("ClusterAABBKernel");
+                computeShader.SetInts(clusterSizeID, new int[] { Screen.width / 16, Screen.height / 16, 16, 0 });
+                computeShader.SetBuffer(kernal, clustersID, clusterList);
+
+                computeShader.Dispatch(kernal, 1, 1, 16);
+                
+            }
+        }
+
+        internal void CleanUp()
+        {
+            CoreUtils.SafeRelease(clusterList);
+            CoreUtils.SafeRelease(itemList);
         }
 
         // This method is called before executing the render pass.
@@ -90,6 +119,7 @@ public class DebugClusterGrid : ScriptableRendererFeature
         // The render pipeline will ensure target setup and clearing happens in a performant manner.
         public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
         {
+            UpdateAABB();
         }
 
         // Here you can implement the rendering logic.
@@ -121,6 +151,12 @@ public class DebugClusterGrid : ScriptableRendererFeature
         // Cleanup any allocated resources that were created during the execution of this render pass.
         public override void OnCameraCleanup(CommandBuffer cmd)
         {
+            Vector4[] aabb = new Vector4[2048 * 2];
+            clusterList.GetData(aabb);
+            Debug.Log("ab0:" + aabb[0]);
+            Debug.Log("ab1:" + aabb[1]);
+            Debug.Log("ab2:" + aabb[2]);
+            Debug.Log("ab3:" + aabb[3]);
         }
     }
 
