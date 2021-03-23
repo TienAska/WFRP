@@ -108,8 +108,8 @@ public class DebugClusterGrid : ScriptableRendererFeature
 
         internal void CleanUp()
         {
-            CoreUtils.SafeRelease(clusterList);
-            CoreUtils.SafeRelease(itemList);
+            //CoreUtils.SafeRelease(clusterList);
+            //CoreUtils.SafeRelease(itemList);
         }
 
         // This method is called before executing the render pass.
@@ -141,6 +141,7 @@ public class DebugClusterGrid : ScriptableRendererFeature
 
             if (clusterMaterial != null)
             {
+                clusterMaterial.SetBuffer(clustersID, clusterList);
                 cmd.DrawProcedural(worldMatrix, clusterMaterial, 0, MeshTopology.Points, 1000);
             }
 

@@ -40,6 +40,8 @@ Shader "Hidden/Debug/ClusterGrid"
                 float3 uv : TEXCOORD0;
             };
 
+            StructuredBuffer<AABB> _Clusters;
+
             VertexOut vert (Attributes input)
             {
                 VertexOut output;
@@ -51,7 +53,8 @@ Shader "Hidden/Debug/ClusterGrid"
             void geom(point VertexOut input[1], inout LineStream<GeometryOutput> outStream)
             {
                 float3 center = float3(input[0].id % 100 % 10, input[0].id % 100 / 10, input[0].id / 100);
-                //center = 0;
+                center = _Clusters[input[0].id].max.xyz;
+
                 GeometryOutput output[4];
                 output[0].vertex = TransformObjectToHClip(center + float3(-0.5, -0.5, 0));
                 output[1].vertex = TransformObjectToHClip(center + float3( 0.5, -0.5, 0));
