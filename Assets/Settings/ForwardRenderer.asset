@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 09d9a87d91d09174baa04c5019a1fc3f, type: 3}
   m_Name: DebugClusterGrid
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   InjectPoint: 300
   settings:
     ClusterCompute: {fileID: 7200000, guid: c45aaf878d5576d40a74e898b151fe62, type: 3}
